@@ -1,0 +1,15 @@
+[package]
+name = "ezp"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.0.11", features = ["derive"]}
+rusb = "0.9"
+byteorder = "1.4.3"
+hex = "0.3.1"
+itertools = "0.10.5"
+human_format = "1.0.3"
+
