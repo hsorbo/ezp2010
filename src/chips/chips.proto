@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+message ChipInfo {
+  enum RomType {
+    Spi = 0;
+    EE24 = 1;
+    EE25 = 2;
+    EE93 = 3;
+  }
+  RomType type = 1;
+  string device_name = 2;
+  string manufacturer_name = 3;
+  uint32 voltage = 4;
+  uint32 size = 5;
+  bool write_1 = 6;
+  int32 write_2 = 7;
+  uint32 manufacturer_id = 8;
+  uint32 device_id = 9;
+  uint32 ee93_unk = 10;
+  uint32 ee93_bits = 11;
+}
+
+message Chips {
+  repeated ChipInfo chips = 1;
+}

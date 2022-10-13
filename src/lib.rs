@@ -1,4 +1,5 @@
 mod arguments;
+mod chips;
 
 pub mod ezp_common {
 
@@ -106,7 +107,7 @@ pub mod ezp_commands {
         return vec![0x15, 0x00, chip_type.chip_to_u8()];
     }
 
-    pub fn process_detect_cmd(resp: &[u8]) -> Result<(u8,u8), Box<dyn std::error::Error>> {
+    pub fn process_detect_cmd(resp: &[u8]) -> Result<(u8, u8), Box<dyn std::error::Error>> {
         let found: [u8; 2] = [0x15, 0x02];
         if resp[..2] != found {
             return Err(Box::new(MyError::new("Detect chip error!")));
@@ -151,31 +152,16 @@ pub mod ezp_commands {
 
 pub mod db {
 
-    use crate::ezp_common;
+    use itertools::Itertools;
+    use quick_protobuf::{BytesReader, MessageRead};
 
-    const ENTRY_SIZE: usize = 0x6C;
-    const ENTRY_PAD: usize = 24;
-    const DATA_SIZE: usize = 81100;
-    const ENTRIES_START: usize = 0x64;
-    const ENTRY_COUNT: usize = (DATA_SIZE - ENTRIES_START) / ENTRY_SIZE;
-    const DATA: &[u8; DATA_SIZE] = include_bytes!("db.bin");
-
-    #[derive(Debug)]
-    #[repr(C)]
-    struct RawChipDbEntry {
-        chip_type: u32,
-        product_name: [u8; 40],
-        vendor_name: [u8; 20],
-        _unknown1: u8,
-        voltage: u8,
-        size: u32,
-        write_1: u32,
-        write_2: u16,
-        manufacturer_id: u8,
-        device_id: u8,
-        ee93_unk: u8,
-        ee93_bits: u8,
-    }
+    use crate::{
+        chips::{
+            self,
+            chips::{mod_ChipInfo::RomType, Chips},
+        },
+        ezp_common,
+    };
 
     #[derive(Debug, Clone)]
     pub struct ChipDbEntry {
@@ -198,7 +184,7 @@ pub mod db {
             return match self.chip_type {
                 ezp_common::ChipType::Spi => 0x0300,
                 ezp_common::ChipType::EE24 => {
-                    // if self.ee24_unk == 0xfe { 0x0400 } } else { ... //not found in database
+                    // if self.device_id == 0xfe { 0x0400 } } else { ... //not found in database
                     if self.size > 0x800 {
                         0x2400
                     } else {
@@ -220,49 +206,35 @@ pub mod db {
             };
         }
     }
-    fn parse_string(buf: &[u8]) -> Result<&str, Box<dyn std::error::Error>> {
-        let kake = buf.iter().position(|&s| s == 0x00).ok_or("No terminator")?;
-        return Ok(std::str::from_utf8(&buf[0..kake])?);
-    }
-    pub fn to_chiptype(t: u32) -> ezp_common::ChipType {
-        return match t {
-            0 => ezp_common::ChipType::Spi,
-            1 => ezp_common::ChipType::EE24,
-            2 => ezp_common::ChipType::EE25,
-            3 => ezp_common::ChipType::EE93,
-            _ => panic!("burn"),
-        };
-    }
 
-    fn get(index: usize) -> Result<ChipDbEntry, Box<dyn std::error::Error>> {
-        let offset = ENTRIES_START + (index * ENTRY_SIZE);
-        let buf: &[u8] = &DATA[offset..offset + (ENTRY_SIZE - ENTRY_PAD)];
-        let s: RawChipDbEntry = unsafe { std::ptr::read(buf.as_ptr() as *const _) };
-        let entry = ChipDbEntry {
-            chip_type: to_chiptype(s.chip_type),
-            size: s.size as u32,
-            voltage: s.voltage,
-            manufacturer_id: s.manufacturer_id,
-            product_name: parse_string(&s.product_name)?.into(),
-            vendor_name: parse_string(&s.vendor_name)?.into(),
-            ee93_bits: s.ee93_bits,
-            ee93_unk: s.ee93_unk,
-            device_id: s.device_id,
-            write_flag: match s.write_1 {
-                0x00 => None,
-                _ => Some(s.write_2),
+    fn map(p: &chips::chips::ChipInfo) -> ChipDbEntry {
+        return ChipDbEntry {
+            chip_type: match p.type_pb {
+                RomType::Spi => ezp_common::ChipType::Spi,
+                RomType::EE24 => ezp_common::ChipType::EE24,
+                RomType::EE25 => ezp_common::ChipType::EE25,
+                RomType::EE93 => ezp_common::ChipType::EE93,
+            },
+            size: p.size,
+            voltage: p.voltage as u8,
+            manufacturer_id: p.manufacturer_id as u8,
+            product_name: p.device_name.to_string(),
+            vendor_name: p.manufacturer_name.to_string(),
+            ee93_bits: p.ee93_bits as u8,
+            ee93_unk: p.ee93_unk as u8,
+            device_id: p.device_id as u8,
+            write_flag: match p.write_1 {
+                false => None,
+                true => Some(p.write_2 as u16),
             },
         };
-        return Ok(entry);
     }
-    pub fn getall() -> Vec<ChipDbEntry> {
-        let mut entries: Vec<ChipDbEntry> = vec![];
 
-        for n in 0..ENTRY_COUNT {
-            let fooo = get(n).unwrap();
-            entries.push(fooo);
-        }
-        return entries;
+    pub fn getall() -> Vec<ChipDbEntry> {
+        let bytes = include_bytes!("roms.pb");
+        let mut reader = BytesReader::from_bytes(bytes);
+        let all = Chips::from_reader(&mut reader, bytes).unwrap().chips;
+        return all.iter().map(map).collect_vec();
     }
 
     pub fn get_by_product_name(name: &str) -> Option<ChipDbEntry> {
@@ -388,9 +360,12 @@ pub mod programming {
         let _ = p.write(cmd);
         std::thread::sleep(std::time::Duration::from_millis(100));
         let _ = p.read(&mut data)?;
-        let (man,dev) = ezp_commands::process_detect_cmd(&data)?;
+        let (man, dev) = ezp_commands::process_detect_cmd(&data)?;
         let all = crate::db::getall();
-        let k = all.iter().find(|x| x.device_id == dev && x.manufacturer_id == man).ok_or("not d")?;
+        let k = all
+            .iter()
+            .find(|x| x.device_id == dev && x.manufacturer_id == man)
+            .ok_or("not d")?;
         return Ok(k.product_name.clone());
     }
 
