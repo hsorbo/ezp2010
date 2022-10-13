@@ -231,7 +231,7 @@ pub mod db {
     }
 
     pub fn getall() -> Vec<ChipDbEntry> {
-        let bytes = include_bytes!("roms.pb");
+        let bytes = include_bytes!("chips/chips.pb");
         let mut reader = BytesReader::from_bytes(bytes);
         let all = Chips::from_reader(&mut reader, bytes).unwrap().chips;
         return all.iter().map(map).collect_vec();
