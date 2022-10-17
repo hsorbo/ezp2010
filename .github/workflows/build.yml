@@ -42,5 +42,5 @@ jobs:
     - name: Collect executable
       uses: actions/upload-artifact@v3
       with:
-        name: executable
+        name: ezp-${{ matrix.target }}.exe
         path: target/release/ezp.exe
