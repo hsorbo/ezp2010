@@ -282,6 +282,7 @@ pub mod programmer {
 
             let iface = only_interface(&config);
             handle.claim_interface(iface.number())?;
+
             let k = UsbProgrammerContext { handle, config };
             return Ok(k);
         }

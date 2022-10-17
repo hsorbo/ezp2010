@@ -7,6 +7,7 @@ __license__     = "GPL2"
 
 import struct
 import json
+import foo_pb2
 
 def decode(b:bytes) -> bytes:
     data = bytearray()
@@ -56,9 +57,27 @@ def create_markdown(entries):
     for x in entries:
         f.write('|{}|{}|{}|{}|{}|\n'.format(types[x['type']], x['device_name'], x['manufacturer_name'], x['voltage'], x['size']))
 
+def write_protobuf(entries):
+    db = foo_pb2.Roms()
+    for x in entries:
+        entry = db.roms.add()
+        entry.type = x['type']
+        entry.device_name = x['device_name']
+        entry.manufacturer_name = x['manufacturer_name']
+        entry.voltage = x['voltage']
+        entry.size = x['size']
+        entry.write_1 = x['write_1']
+        entry.write_2 = x['write_2']
+        entry.manufacturer_id = x['manufacturer_id']
+        entry.device_id = x['device_id']
+        entry.ee93_unk = x['ee93_unk']
+        entry.ee93_bits = x['ee93_bits']
+    open('DateBase.pb', 'wb').write(db.SerializeToString())
+
 if __name__ == "__main__":
     filename = 'DateBase.dat'
     entries = [parse_entry(x) for x in read_db(filename)]
-    #create_json(entries)
-    create_markdown(entries)
+    create_json(entries)
+    #create_markdown(entries)
+    write_protobuf(entries)
 
