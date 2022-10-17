@@ -14,3 +14,7 @@ itertools = "0.10.5"
 human_format = "1.0.3"
 quick-protobuf = "0.8.0"
 
+[profile.release]
+opt-level = "z"
+lto = true
+# env LIBUSB_STATIC=1 cargo build #dont run stipr
