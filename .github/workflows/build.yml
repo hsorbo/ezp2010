@@ -1,3 +1,5 @@
+# Stolen from: https://github.com/rust-lang/rustfmt/blob/master/.github/workflows/windows.yml
+
 name: Builds ezp2010
 on:
   push:
@@ -35,12 +37,16 @@ jobs:
         rustup target add ${{ matrix.target }}
       shell: powershell
 
-    - name: Build and Test
+    - name: Build
       shell: cmd
       run: cargo build --release
+
+    - name: Test
+      shell: cmd
+      run: cargo test --release
 
     - name: Collect executable
       uses: actions/upload-artifact@v3
       with:
-        name: ezp-${{ matrix.target }}.exe
+        name: ezp-${{ matrix.target }}
         path: target/release/ezp.exe
