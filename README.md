@@ -13,6 +13,24 @@ brew install ezp2010
 ```
 
 ## Running
+```
+Read and write flash-roms using ezp2010
+
+Usage: ezp <COMMAND>
+
+Commands:
+  read    Read from rom
+  write   Write to rom
+  info    Shows information about connected programmer
+  erase   Erase (on supported chips)
+  detect  Detect rom
+  list    Shows available flash rom type
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help information
+  -V, --version  Print version information
+```
 
 ```
 ezp info
