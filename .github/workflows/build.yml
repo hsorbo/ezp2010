@@ -39,14 +39,14 @@ jobs:
 
     - name: Build
       shell: cmd
-      run: cargo build --release
+      run: cargo build --target=${{ matrix.target }} --release
 
     - name: Test
       shell: cmd
-      run: cargo test --release
+      run: cargo test  --target=${{ matrix.target }} --release
 
     - name: Collect executable
       uses: actions/upload-artifact@v3
       with:
         name: ezp-${{ matrix.target }}
-        path: target/release/ezp.exe
+        path: target/${{ matrix.target }}/release/ezp.exe
