@@ -262,12 +262,24 @@ pub mod programmer {
         pub config: ConfigDescriptor,
     }
 
-    fn only_interface(c: &ConfigDescriptor) -> Interface {
+    pub fn only_interface(c: &ConfigDescriptor) -> Interface {
         return c
             .interfaces()
             .exactly_one()
             .map_err(|_| "Interface not found")
             .unwrap();
+    }
+
+    pub fn only_descriptor(c: Interface) -> InterfaceDescriptor {
+        return c
+            .descriptors()
+            .exactly_one()
+            .map_err(|_| "not found")
+            .unwrap();
+    }
+
+    pub fn descr (config:&rusb::ConfigDescriptor) -> InterfaceDescriptor {
+        return only_descriptor(only_interface(config));
     }
 
     impl UsbProgrammerContext {
@@ -285,6 +297,10 @@ pub mod programmer {
 
             let k = UsbProgrammerContext { handle, config };
             return Ok(k);
+        }
+        
+        pub fn ifdesc<'a>(&self) -> InterfaceDescriptor<'a> {
+            descr(&self.config)
         }
     }
 

@@ -1,12 +1,12 @@
 use clap::Parser;
-use ezp::{db, programmer::UsbProgrammer, programming};
-use itertools::Itertools;
+use ezp::{db, programmer::*, programming};
 
 mod arguments {
     use clap::{command, Args, Parser, Subcommand};
 
     #[derive(Debug, Parser)]
     #[clap(author, version, about)]
+    #[clap(color = clap::ColorChoice::Always)]
     #[command(author, version, about, long_about = None)]
     #[command(name = "ezp2010")]
     #[command(author = "Håvard Sørbø <havard@hsorbo.no>")]
@@ -18,6 +18,7 @@ mod arguments {
     }
 
     #[derive(Debug, Subcommand)]
+    #[clap(color = clap::ColorChoice::Always)]
     pub enum Command {
         /// Read from rom
         Read(ReadWriteCommand),
@@ -34,6 +35,7 @@ mod arguments {
     }
 
     #[derive(Debug, Args)]
+    #[clap(color = clap::ColorChoice::Always)]
     pub struct ReadWriteCommand {
         /// Type of rom. [ezp2000 list] for list
         #[arg(short = 't', long = "type", value_name = "type")]
@@ -45,17 +47,8 @@ mod arguments {
 fn mein(arg: arguments::EzpArgs) -> Result<(), Box<dyn std::error::Error>> {
     match arg.command {
         arguments::Command::Info => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
+            let usb = UsbProgrammerContext::open()?;
+            let ifdesc = descr(&usb.config);
             let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
 
             println!(
@@ -66,17 +59,8 @@ fn mein(arg: arguments::EzpArgs) -> Result<(), Box<dyn std::error::Error>> {
             );
         }
         arguments::Command::Read(x) => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
+            let usb = UsbProgrammerContext::open()?;
+            let ifdesc = descr(&usb.config);
             let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
 
             let chip = db::get_by_product_name(&x.chip_type);
@@ -90,17 +74,8 @@ fn mein(arg: arguments::EzpArgs) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         arguments::Command::Write(x) => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
+            let usb = UsbProgrammerContext::open()?;
+            let ifdesc = descr(&usb.config);
             let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
 
             let chip = db::get_by_product_name(&x.chip_type);
@@ -114,35 +89,17 @@ fn mein(arg: arguments::EzpArgs) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         arguments::Command::Erase => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
+            let usb = UsbProgrammerContext::open()?;
+            let ifdesc = descr(&usb.config);
             let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
 
             println!("Erasing....");
             programming::erase(&p)?;
         }
         arguments::Command::Detect => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
-            let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
+            let usb = UsbProgrammerContext::open()?;
+            let ifdesc = &usb.ifdesc();
+            let p = UsbProgrammer::create_programmer(usb.handle, ifdesc);
 
             println!("{}", programming::detect(&p)?);
         }
