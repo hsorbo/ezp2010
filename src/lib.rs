@@ -11,12 +11,12 @@ pub mod ezp_common {
     }
     impl ChipType {
         pub fn chip_to_u8(&self) -> u8 {
-            return match &self {
+            match &self {
                 ChipType::Spi => 0x01,
                 ChipType::EE24 => 0x02,
                 ChipType::EE25 => 0x03,
                 ChipType::EE93 => 0x04,
-            };
+            }
         }
     }
 }
@@ -65,7 +65,7 @@ pub mod ezp_commands {
         data.write_u16::<NetworkEndian>(flags).unwrap();
         data.push(if is5v { 0x01 } else { 0x00 });
         data.push(0x00);
-        return data;
+        data
     }
 
     pub fn process_read_cmd(resp: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
@@ -73,7 +73,7 @@ pub mod ezp_commands {
         if resp != success {
             return Err(Box::new(MyError::new("No")));
         }
-        return Ok(());
+        Ok(())
     }
 
     pub fn create_write_cmd(
@@ -90,7 +90,7 @@ pub mod ezp_commands {
         data.write_u16::<NetworkEndian>(flags).unwrap();
         data.push(if is5v { 0x01 } else { 0x00 });
         data.push(0x00);
-        return data;
+        data
     }
 
     pub fn process_write_cmd(resp: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
@@ -99,11 +99,11 @@ pub mod ezp_commands {
         if resp != success {
             return Err(Box::new(MyError::new("No")));
         }
-        return Ok(());
+        Ok(())
     }
 
     pub fn create_detect_cmd(chip_type: &ChipType) -> Vec<u8> {
-        return vec![0x15, 0x00, chip_type.chip_to_u8()];
+        vec![0x15, 0x00, chip_type.chip_to_u8()]
     }
 
     pub fn process_detect_cmd(resp: &[u8]) -> Result<(u8, u8), Box<dyn std::error::Error>> {
@@ -112,7 +112,7 @@ pub mod ezp_commands {
             return Err(Box::new(MyError::new("Detect chip error!")));
         }
         //chip_type: &ChipType
-        return Ok((resp[2], resp[3]));
+        Ok((resp[2], resp[3]))
         //cmp     al, 0FFh, check if manufactor is != 0xff
 
         //ManufacturerID:%X\r\nDeviceID:%X
@@ -120,7 +120,7 @@ pub mod ezp_commands {
     }
 
     pub fn create_version_cmd() -> Vec<u8> {
-        return vec![0x17, 0x00];
+        vec![0x17, 0x00]
     }
 
     pub fn process_version(data: &Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
@@ -129,11 +129,11 @@ pub mod ezp_commands {
         }
         //core::slice::ascii::escape_ascii
         let end = data[2..].iter().position(|x| x == &0x00).unwrap_or(0);
-        return Ok(String::from_utf8(data[2..end].to_vec())?);
+        Ok(String::from_utf8(data[2..end].to_vec())?)
     }
 
     pub fn create_serial_cmd() -> Vec<u8> {
-        return vec![0x18, 0x00];
+        vec![0x18, 0x00]
     }
 
     pub fn process_serial(data: &Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
@@ -141,11 +141,11 @@ pub mod ezp_commands {
             return Err(Box::new(MyError::new("No")));
         }
         //TODO: Why 2x 0xff at end?
-        return Ok(String::from_utf8(data[2..16].to_vec())?);
+        Ok(String::from_utf8(data[2..16].to_vec())?)
     }
 
     pub fn create_self_test_cmd() -> Vec<u8> {
-        return vec![0xf3, 0x00];
+        vec![0xf3, 0x00]
     }
 }
 
@@ -177,10 +177,10 @@ pub mod db {
     }
     impl ChipDbEntry {
         pub fn is5v(&self) -> bool {
-            return self.voltage > 0x28;
+            self.voltage > 0x28
         }
         pub fn flags(&self) -> u16 {
-            return match self.chip_type {
+            match self.chip_type {
                 ezp_common::ChipType::Spi => 0x0300,
                 ezp_common::ChipType::EE24 => {
                     // if self.device_id == 0xfe { 0x0400 } } else { ... //not found in database
@@ -198,16 +198,16 @@ pub mod db {
                     }
                 }
                 ezp_common::ChipType::EE93 => {
-                    let hi = 0x10 * self.ee93_unk | 0x08;
+                    let hi = (0x10 * self.ee93_unk) | 0x08;
                     let lo = if self.ee93_bits == 0x08 { 0x03 } else { 0x01 };
-                    return ((hi as u16) << 8) | (lo as u16);
+                    ((hi as u16) << 8) | (lo as u16)
                 }
-            };
+            }
         }
     }
 
     fn map(p: &chips::chips::ChipInfo) -> ChipDbEntry {
-        return ChipDbEntry {
+        ChipDbEntry {
             chip_type: match p.type_pb {
                 RomType::Spi => ezp_common::ChipType::Spi,
                 RomType::EE24 => ezp_common::ChipType::EE24,
@@ -226,7 +226,7 @@ pub mod db {
                 false => None,
                 true => Some(p.write_2 as u16),
             },
-        };
+        }
     }
 
     pub fn getall() -> Vec<ChipDbEntry> {
@@ -237,10 +237,10 @@ pub mod db {
     }
 
     pub fn get_by_product_name(name: &str) -> Option<ChipDbEntry> {
-        return getall()
+        getall()
             .iter()
             .find(|x| x.product_name == name)
-            .map(|f| f.clone());
+            .map(|f| f.clone())
     }
 }
 
@@ -284,7 +284,7 @@ pub mod programmer {
             handle.claim_interface(iface.number())?;
 
             let k = UsbProgrammerContext { handle, config };
-            return Ok(k);
+            Ok(k)
         }
     }
 
@@ -299,7 +299,7 @@ pub mod programmer {
             ifdesc: &'a InterfaceDescriptor,
         ) -> UsbProgrammer<'a> {
             return UsbProgrammer {
-                handle: handle,
+                handle,
                 fout: ifdesc
                     .endpoint_descriptors()
                     .find(|x| x.direction() == rusb::Direction::Out)
@@ -315,10 +315,10 @@ pub mod programmer {
 
     impl Programmer for UsbProgrammer<'_> {
         fn write(&self, buf: &[u8]) -> Result<usize, rusb::Error> {
-            return self.handle.write_bulk(self.fout.address(), buf, TIMEOUT);
+            self.handle.write_bulk(self.fout.address(), buf, TIMEOUT)
         }
         fn read(&self, buf: &mut [u8]) -> Result<usize, rusb::Error> {
-            return self.handle.read_bulk(self.fin.address(), buf, TIMEOUT);
+            self.handle.read_bulk(self.fin.address(), buf, TIMEOUT)
         }
     }
 }
@@ -335,14 +335,14 @@ pub mod programming {
         let mut data: [u8; 512] = [0x00; 512];
         let _ = p.write(&ezp_commands::create_serial_cmd());
         let read = p.read(&mut data)?;
-        return Ok(ezp_commands::process_serial(&data[..read].to_vec())?);
+        ezp_commands::process_serial(&data[..read].to_vec())
     }
 
     pub fn get_version(p: &UsbProgrammer) -> Result<String, Box<dyn std::error::Error>> {
         let mut data: [u8; 512] = [0x00; 512];
         let _ = p.write(&ezp_commands::create_version_cmd());
         let read = p.read(&mut data)?;
-        return Ok(ezp_commands::process_version(&data[..read].to_vec())?);
+        ezp_commands::process_version(&data[..read].to_vec())
     }
 
     pub fn self_test(p: &UsbProgrammer) -> Result<String, Box<dyn std::error::Error>> {
@@ -351,7 +351,7 @@ pub mod programming {
         let _ = p.read(&mut data)?;
         std::thread::sleep(std::time::Duration::from_millis(100));
         let read = p.read(&mut data)?;
-        return Ok(String::from_utf8(data[..read].to_vec())?);
+        Ok(String::from_utf8(data[..read].to_vec())?)
     }
 
     pub fn detect(p: &UsbProgrammer) -> Result<String, Box<dyn std::error::Error>> {
@@ -366,7 +366,7 @@ pub mod programming {
             .iter()
             .find(|x| x.device_id == dev && x.manufacturer_id == man)
             .ok_or("not d")?;
-        return Ok(k.product_name.clone());
+        Ok(k.product_name.clone())
     }
 
     pub fn read(
@@ -394,7 +394,7 @@ pub mod programming {
         if total != chip.size as usize {
             println!("Size mismatch got {} expected {}", total, chip.size);
         }
-        return Ok(());
+        Ok(())
     }
     pub fn write(
         p: &UsbProgrammer,
@@ -425,7 +425,7 @@ pub mod programming {
         if total != chip.size as usize {
             println!("Size mismatch got {} expected {}", total, chip.size);
         }
-        return Ok(());
+        Ok(())
     }
 
     pub fn erase(p: &UsbProgrammer) -> Result<(), Box<dyn std::error::Error>> {
