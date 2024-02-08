@@ -270,6 +270,19 @@ pub mod programmer {
             .unwrap();
     }
 
+    pub fn create_ifdesc(
+        config: &'_ ConfigDescriptor,
+    ) -> Result<InterfaceDescriptor<'_>, Box<dyn std::error::Error>> {
+        let r = config
+            .interfaces()
+            .exactly_one()
+            .map_err(|_| "Interface not found")?
+            .descriptors()
+            .exactly_one()
+            .map_err(|_| "not found")?;
+        Ok(r)
+    }
+
     impl UsbProgrammerContext {
         pub fn open() -> Result<UsbProgrammerContext, Box<dyn std::error::Error>> {
             let mut handle =
