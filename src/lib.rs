@@ -246,10 +246,7 @@ pub mod db {
 
 pub mod programmer {
     use itertools::Itertools;
-    use rusb::{
-        ConfigDescriptor, DeviceHandle, EndpointDescriptor, GlobalContext, Interface,
-        InterfaceDescriptor,
-    };
+    use rusb::{DeviceHandle, GlobalContext};
     use std::time::Duration;
 
     pub trait Programmer {
@@ -257,22 +254,15 @@ pub mod programmer {
         fn write(&self, buf: &[u8]) -> Result<usize, rusb::Error>;
     }
 
-    pub struct UsbProgrammerContext {
-        pub handle: DeviceHandle<GlobalContext>,
-        pub config: ConfigDescriptor,
+    pub struct UsbProgrammer {
+        handle: DeviceHandle<GlobalContext>,
+        endpoint_in: u8,
+        endpoint_out: u8,
     }
 
-    fn only_interface(c: &ConfigDescriptor) -> Interface {
-        return c
-            .interfaces()
-            .exactly_one()
-            .map_err(|_| "Interface not found")
-            .unwrap();
-    }
-
-    impl UsbProgrammerContext {
-        pub fn open() -> Result<UsbProgrammerContext, Box<dyn std::error::Error>> {
-            let mut handle =
+    impl UsbProgrammer {
+        pub fn open() -> Result<UsbProgrammer, Box<dyn std::error::Error>> {
+            let handle =
                 rusb::open_device_with_vid_pid(0x10c4, 0xf5a0).ok_or("Programmer not found")?;
             let device = handle.device();
             let config = device.config_descriptor(0)?;
@@ -280,45 +270,45 @@ pub mod programmer {
             handle.set_auto_detach_kernel_driver(true)?;
             handle.set_active_configuration(config.number())?;
 
-            let iface = only_interface(&config);
+            let iface = config
+                .interfaces()
+                .exactly_one()
+                .map_err(|_| "Interface not found")?;
             handle.claim_interface(iface.number())?;
 
-            let k = UsbProgrammerContext { handle, config };
-            return Ok(k);
+            let ifdesc = iface
+                .descriptors()
+                .exactly_one()
+                .map_err(|_| "Interface descriptor not found")?;
+
+            let endpoint_out = ifdesc
+                .endpoint_descriptors()
+                .find(|x| x.direction() == rusb::Direction::Out)
+                .ok_or("Output endpoint not found")?
+                .address();
+
+            let endpoint_in = ifdesc
+                .endpoint_descriptors()
+                .find(|x| x.direction() == rusb::Direction::In)
+                .ok_or("Input endpoint not found")?
+                .address();
+
+            Ok(UsbProgrammer {
+                handle,
+                endpoint_in,
+                endpoint_out,
+            })
         }
     }
 
-    pub struct UsbProgrammer<'a> {
-        handle: DeviceHandle<GlobalContext>,
-        fin: EndpointDescriptor<'a>,
-        fout: EndpointDescriptor<'a>,
-    }
-    impl UsbProgrammer<'_> {
-        pub fn create_programmer<'a>(
-            handle: DeviceHandle<GlobalContext>,
-            ifdesc: &'a InterfaceDescriptor,
-        ) -> UsbProgrammer<'a> {
-            return UsbProgrammer {
-                handle: handle,
-                fout: ifdesc
-                    .endpoint_descriptors()
-                    .find(|x| x.direction() == rusb::Direction::Out)
-                    .unwrap(),
-                fin: ifdesc
-                    .endpoint_descriptors()
-                    .find(|x| x.direction() == rusb::Direction::In)
-                    .unwrap(),
-            };
-        }
-    }
     const TIMEOUT: Duration = core::time::Duration::from_millis(10000);
 
-    impl Programmer for UsbProgrammer<'_> {
+    impl Programmer for UsbProgrammer {
         fn write(&self, buf: &[u8]) -> Result<usize, rusb::Error> {
-            return self.handle.write_bulk(self.fout.address(), buf, TIMEOUT);
+            return self.handle.write_bulk(self.endpoint_out, buf, TIMEOUT);
         }
         fn read(&self, buf: &mut [u8]) -> Result<usize, rusb::Error> {
-            return self.handle.read_bulk(self.fin.address(), buf, TIMEOUT);
+            return self.handle.read_bulk(self.endpoint_in, buf, TIMEOUT);
         }
     }
 }

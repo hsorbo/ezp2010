@@ -1,6 +1,5 @@
 use clap::Parser;
 use ezp::{db, programmer::UsbProgrammer, programming};
-use itertools::Itertools;
 
 mod arguments {
     use clap::{command, Args, Parser, Subcommand};
@@ -45,19 +44,7 @@ mod arguments {
 fn mein(arg: arguments::EzpArgs) -> Result<(), Box<dyn std::error::Error>> {
     match arg.command {
         arguments::Command::Info => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
-            let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
-
+            let p = UsbProgrammer::open()?;
             println!(
                 "Programmer: {}\nS/N: {}\nStatus: {}",
                 programming::get_version(&p)?,
@@ -66,19 +53,7 @@ fn mein(arg: arguments::EzpArgs) -> Result<(), Box<dyn std::error::Error>> {
             );
         }
         arguments::Command::Read(x) => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
-            let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
-
+            let p = UsbProgrammer::open()?;
             let chip = db::get_by_product_name(&x.chip_type);
             match chip {
                 None => println!("Chip not found: {}", x.chip_type),
@@ -90,19 +65,7 @@ fn mein(arg: arguments::EzpArgs) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         arguments::Command::Write(x) => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
-            let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
-
+            let p = UsbProgrammer::open()?;
             let chip = db::get_by_product_name(&x.chip_type);
             match chip {
                 None => println!("Chip not found: {}", x.chip_type),
@@ -114,39 +77,14 @@ fn mein(arg: arguments::EzpArgs) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         arguments::Command::Erase => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
-            let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
-
+            let p = UsbProgrammer::open()?;
             println!("Erasing....");
             programming::erase(&p)?;
         }
         arguments::Command::Detect => {
-            let usb = ezp::programmer::UsbProgrammerContext::open()?;
-            let ifdesc = &usb
-                .config
-                .interfaces()
-                .exactly_one()
-                .map_err(|_| "Interface not found")
-                .unwrap()
-                .descriptors()
-                .exactly_one()
-                .map_err(|_| "not found")
-                .unwrap();
-            let p = UsbProgrammer::create_programmer(usb.handle, &ifdesc);
-
+            let p = UsbProgrammer::open()?;
             println!("{}", programming::detect(&p)?);
         }
-
         arguments::Command::List => {
             for x in ezp::db::getall() {
                 let size_s = human_format::Formatter::new()
